@@ -161,7 +161,7 @@ void delete_animals(int type) {
 		/* can access a directly e.g. a->id */
 		i++;
 	}
-	printk(KERN_NOTICE "animal type %d had %d entries", type, i);
+	printk(KERN_NOTICE "animal type %d had %d entries\n", type, i);
 
 	/* free up memory allocation of Animals */
 	//list_for_each_prev_safe(temp, dummy, &move_list) { /* backwards */

@@ -16,6 +16,7 @@ static struct file_operations fops;
 
 static char *message;
 static int read_p;
+static int counter;
 
 int hello_proc_open(struct inode *sp_inode, struct file *sp_file) {
 	printk(KERN_INFO "proc called open\n");
@@ -27,7 +28,9 @@ int hello_proc_open(struct inode *sp_inode, struct file *sp_file) {
 		return -ENOMEM;
 	}
 	
-	strcpy(message, "Hello, World!\n");
+	counter += 1;
+	sprintf(message,"Hello World! Counter: %d\n", counter);
+	
 	return 0;
 }
 
@@ -55,6 +58,8 @@ static int hello_init(void) {
 	fops.read = hello_proc_read;
 	fops.release = hello_proc_release;
 	
+	counter = 0;
+
 	if (!proc_create(ENTRY_NAME, PERMS, NULL, &fops)) {
 		printk(KERN_WARNING "proc create\n");
 		remove_proc_entry(ENTRY_NAME, NULL);
