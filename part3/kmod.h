@@ -51,7 +51,6 @@ typedef struct building_type
 
 } building;
 
-
 //  Kernel Module Function Prototypes
 static int elevator_init(void);
 static void elevator_exit(void);
@@ -68,6 +67,10 @@ void initBuilding(elevator *e, building *b);
 int calcWeight(elevator *e);
 int calcPass(elevator *e);
 int hasSpace(elevator *e);
+
+// Syscall Function Prototypes
+void link_syscalls(void);
+void unlink_syscalls(void);
 
 
 #endif
