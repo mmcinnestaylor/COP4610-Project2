@@ -43,17 +43,22 @@ void initBuilding(elevator *e, building *b)
 
 int calcWeight(elevator *e)
 {
-
+    e->w_units = e->child + e->adult * 2 + e->room * 4 + e->bell * 8;
+    return e->w_units;
 }
 
 
 int calcPass(elevator *e)
 {
-
-
+    e->p_units = e->child + e->adult + e->room * 2 + e->bell * 2;
+    return e->p_units;
 }
 
 int hasSpace(elevator *e)
 {
-
+    if(e->w_units < MAX_W)
+        return 1;
+    else
+        return 0;
+    
 }
