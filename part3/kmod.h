@@ -1,6 +1,8 @@
 #ifndef __KMOD_H_
 #define __KMOD_H_
 
+#define MAX_W 30
+
 #include <linux/list.h>
 
 enum STATE { IDLE, OFFLINE, LOADING, UP, DOWN };
