@@ -37,24 +37,45 @@ static elevator e;
 static char* message;
 static int read_p;
 
-
 extern long (*STUB_issue_request)(int, int, int);
 long issue_request(int p_type, int s_floor, int d_floor)
 {
+    if (p_type < 1 || p_type > 4)       return 1;
+    if (s_floor < 1 || s_floor > 10)    return 1;
+    if (d_floor < 1 || d_floor > 10)    return 1;
+    
+    passenger *p;
+    p = kmalloc(sizeof(passenger), KMFLAGS);
+    p->type = p_type - 1;
+    p->s_floor = s_type - 1;
+    p->d_floor = d_type - 1;
+    INIT_LIST_HEAD(p->node);
+    
+    
+    mutex_lock_interruptable(&b_mutex);
+    
+    //list_add_tail(&p->node, &b.f[p->s_floor].waiting);
 
+    mutex_unlock(&b_mutex);
+    
     return 0;
 }
 
 extern long (*STUB_start_elevator)(void);
 long start_elevator(void)
-{
-
+{ 
+    if (e.status != OFFLINE)
+        return 1;
+    
+    initElevator(&e);
+    initBuilding(&e, &b);
     return 0;
 }
 
 extern long (*STUB_stop_elevator)(void);
 long stop_elevator(void)
 {
+
     return 0;
 }
 
@@ -92,7 +113,10 @@ ssize_t elevator_read(struct file *sp_file, char __user *buf, size_t size, loff_
     read_p = !read_p;
     if (read_p)
         return 0;   
-  
+    
+    int len;
+    len = printStats(message); 
+
     printk(KERN_INFO "proc called read\n");
     copy_to_user(buf, message, len);
 
@@ -115,9 +139,7 @@ static int elevator_init(void)
     fops.read = elevator_read;
     fops.release = elevator_release;
     
-    initElevator(&e);
-    initBuilding(&e, &b);
-    
+    e.status = OFFLINE;
     mutex_init(&e_mutex);
     mutex_init(&b_mutex);
 
@@ -136,8 +158,11 @@ module_init(elevator_init);
 static void elevator_exit(void)
 {
     unlink_syscalls();
+
+    mutex_destroy(&e_mutex);
+    mutex_destroy(&b_mutex);
+
     remove_proc_entry(ENTRY_NAME, NULL);
     printk(KERN_NOTICE "Removing /proc/%s\n", ENTRY_NAME);
 }
 module_exit(elevator_exit);
-

@@ -1,3 +1,4 @@
+#include <linux/kernel.h>
 #include "kmod.h"
 
 void initElevator(elevator *e)
@@ -41,6 +42,100 @@ void initBuilding(elevator *e, building *b)
     b->current = 0;
 }
 
+// always will be added to waiting
+void addPass(passenger *p)
+{
+    int w_units, p_units;
+    w_units = getWeight(p);
+    p_units = getPass(p);
+    
+    list_add_tail(&p->node, &b.f[p->s_floor].waiting);
+
+    b.f[p->s_floor].w_units += w_units;
+    b.f[p->s_floor].p_units += p_units;
+
+    switch (p->type)
+    {
+        case ADULT:
+            b.f[p->s_floor].adult += 1;
+            break;
+        case CHILD:
+            b.f[p->s_floor].child += 1;
+            break;
+        case ROOM:
+            b.f[p->s_floor].room += 1;
+            break;
+        case BELL:
+            b.f[p->s_floor].bell += 1;
+            break;
+    }
+}
+
+// always will be deleted from e->p[i]
+void delPass(passenger *p)
+{
+
+}
+
+// always will be moved from waiting to e->p[i]
+void movePass(passenger *p)
+{
+
+    e.w_units += w_units;
+    e.p_units += p_units;
+    b.f[p->s_floor].w_units -= w_units;
+    b.f[p->s_floor].p_units -= p_units;
+
+    switch (p->type)
+    {
+        case ADULT:
+            e.adult += 1
+            break;
+        case CHILD:
+            break;
+        case ROOM:
+            break;
+        case BELL:
+            break;
+    }
+
+
+
+}
+
+char* getState(elevator *e)
+{
+    if (e->status == IDLE)          return ("Idle");
+    else if (e->status == OFFLINE)  return ("Offline");
+    else if (e->status == LOADING)  return ("Loading");
+    else if (e->status == UP)       return ("Up");
+    else if (e->status == DOWN)     return ("Down");
+    else                            return ("Not Set");
+}
+
+int printStats(char *buf)
+{
+    int len = 0;
+    
+    len += sprintf(buf + len, "State: %s\n", getState(&e));
+    len += sprintf(buf + len, "Current Floor: %d\n", e.current);
+    len += sprintf(buf + len, "Next Floor: %d\n", e.next);
+    len += sprintf(buf + len, "Elevator Load (P/W):  %d/%d\n", e.p_units, e.w_units/2);
+    
+    int i;
+    for (i = 0; i < MAX_FLOOR; i++)
+    {
+        len += sprintf(buf + len, 
+                "\nFloor %d: %d/%d waiting (P/W) and %d serviced\n", 
+                i+1, 
+                b.f[i].p_units,
+                b.f[i].w_units/2,
+                b.f[i].serviced);
+    }
+
+    return len;
+}
+
 int calcWeight(elevator *e)
 {
     e->w_units = e->child + e->adult * 2 + e->room * 4 + e->bell * 8;
@@ -59,6 +154,5 @@ int hasSpace(elevator *e)
     if(e->w_units < MAX_W)
         return 1;
     else
-        return 0;
-    
+        return 0;   
 }
