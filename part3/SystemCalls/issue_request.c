@@ -1,6 +1,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/linkage.h>
+#include <linux/syscalls.h>
 
 long (*STUB_issue_request)(int, int, int) = NULL;
 EXPORT_SYMBOL(STUB_issue_request);
