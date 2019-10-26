@@ -13,6 +13,13 @@
 enum STATE { IDLE, OFFLINE, LOADING, UP, DOWN };
 enum P_TYPE { ADULT, CHILD, ROOM, BELL };
 
+struct list_head
+{
+    struct list_head *next;
+    struct list_head *prev;
+
+};
+
 typedef struct passenger_type
 {
     P_TYPE type;
@@ -21,8 +28,9 @@ typedef struct passenger_type
     int d_floor;
 
 } passenger;
+ 
 
-typedef struct elevator_type 
+typedef struct elevator_type
 {    
     struct list_head p[10];         // passengers
     STATE status;
