@@ -103,6 +103,15 @@ void movePass(passenger *p)
 
 }
 
+/* will find the passenger at the head of the FIFO queue 
+to potentially load onto the elevator*/
+list_head* find(building *b)
+{
+    if(hasSpace(b->e) && canFit(b->f[(b->e).current])
+    {
+    }
+}
+
 char* getState(elevator *e)
 {
     if (e->status == IDLE)          return ("Idle");
@@ -149,9 +158,11 @@ int calcPass(elevator *e)
     return e->p_units;
 }
 
+// 1 if there is room for a passenger and weight limit is below max
+// 0 otherwise
 int hasSpace(elevator *e)
 {
-    if(e->w_units < MAX_W)
+    if(e->w_units < MAX_W && e->p_units < MAX_P)    
         return 1;
     else
         return 0;   
