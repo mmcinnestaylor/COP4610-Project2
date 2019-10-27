@@ -45,6 +45,7 @@ typedef struct elevator_type
     int current;
     int next;
     int shutdown;
+    int direction; // 1 if going up, 0 if going down
 
 } elevator;
 
@@ -86,6 +87,8 @@ char* getState(elevator *e);
 int calcWeight(elevator *e);
 int calcPass(elevator *e);
 int hasSpace(elevator *e);
+int pDirection(passenger *p);
+passanger* find();
 
 void initBuilding(building *b);
 void addPass(passenger *p);
@@ -236,7 +239,7 @@ void movePass(passenger *p)
     b.f[p->s_floor].p_units -= p_unit;
     e.w_units += w_unit;
     e.p_units += p_unit;
-    list_move_tail(&p->node, &e.p[p->s_floor]);
+    list_move_tail(&p->node, &e.p[p->d_floor]);
     printk("Anotha one");
 }
 
@@ -352,4 +355,25 @@ int checkFloor(int i)
         return 0;
 }
 
+/* will find the passenger at the head of the FIFO queue 
+to potentially load onto the elevator*/
+passenger* find()
+{
+    struct list_head temp;
+    passenger *p = NULL;
+
+    p = list_entry(temp, passenger, &(b.f[e.current]).waiting);
+    if(canFit(p) && pDirection(p) == e.direction) 
+        return p;
+    else
+        return NULL;
+}
+
+int pDirection(passenger *p)
+{
+    if(p->d_floor > p->s_floor)
+        return 1;
+    else
+        return 0;
+}
 #endif
