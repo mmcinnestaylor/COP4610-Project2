@@ -35,18 +35,41 @@ int runElevator(void *data)
 {
     tp *param = data;
     passenger *p;
+    struct list_head temp;
+
     while (!kthread_should_stop())
     {
         ssleep(M_SLEEP);
         if (mutex_lock_interruptable(&param->mutx) == 0)
         {
+            //empty queue of passengers getting off at floor
             while (!list_empty(&e.p[e.current]))
             {
                 p = list_first_entry(&e.p[e.current], passenger, node);
-                e.next = p->d_floor;
-
+                delPass(p);
             }
-                break;
+            /*add passengers (if any) to elevator if going in same direction
+            and they can fit*/
+            while(checkFloor(e.current)){
+                p = find();
+                if(p != NULL)
+                    movePass(p);
+                else
+                    break;
+            }
+            //move to next floor
+            if(e.current == 1){
+                e.direction = 1;
+                e.current++;
+            }
+            else if(e.current == 10){
+                e.direction = 0;
+                e.current--;
+            }
+            else if(e.direction == 1)
+                e.current++;
+            else
+                e.current--;
 
         }
         mutex_unlock(&param->mutx);

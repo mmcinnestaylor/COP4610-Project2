@@ -103,15 +103,6 @@ void movePass(passenger *p)
 
 }
 
-/* will find the passenger at the head of the FIFO queue 
-to potentially load onto the elevator*/
-list_head* find(building *b)
-{
-    if(hasSpace(b->e) && canFit(b->f[(b->e).current])
-    {
-    }
-}
-
 char* getState(elevator *e)
 {
     if (e->status == IDLE)          return ("Idle");
