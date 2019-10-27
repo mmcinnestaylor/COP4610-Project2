@@ -1,5 +1,7 @@
 ELEVATOR_MODULE = /usr/src/test_kernel/part3
 .PHONY: compile insert remove start issue stop watch_proc clean
+.PHONY1: compile insert remove start issue stop clean
+.PHONY2: compile insert start issue stop remove clean
 
 compile: producer.c consumer.c wrappers.h
 	gcc -o producer.x producer.c

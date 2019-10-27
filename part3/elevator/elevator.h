@@ -13,8 +13,8 @@
 #define M_SLEEP 2
 #define L_SLEEP 1
 
-enum STATE { IDLE, OFFLINE, LOADING, UP, DOWN };
-enum P_TYPE { ADULT, CHILD, ROOM, BELL };
+typedef enum { IDLE, OFFLINE, LOADING, UP, DOWN } STATE;
+typedef enum { ADULT, CHILD, ROOM, BELL } P_TYPE;
 
 typedef struct thread_params
 {
@@ -42,7 +42,7 @@ typedef struct elevator_type
     int child;
     int room;
     int bell;
-    int current;
+    int _current;
     int next;
     int shutdown;
 
@@ -65,7 +65,8 @@ typedef struct floors_type
 typedef struct building_type
 {
     floors f[10];
-    int current;
+    elevator *e;
+    int _current;
 
 } building;
 
@@ -87,16 +88,16 @@ int calcWeight(elevator *e);
 int calcPass(elevator *e);
 int hasSpace(elevator *e);
 
-void initBuilding(building *b);
-void addPass(passenger *p);
-void delPass(passenger *p);
-void movePass(passenger *p);
+void initBuilding(building *b, elevator *e);
+void addPass(building *b, passenger *p);
+void delPass(building *b, passenger *p);
+void movePass(building *b, passenger *p);
 int getPass(passenger *p);
 int getWeight(passenger *p);
-int canFit(passenger *p);
-int checkFloor(int i);
+int canFit(passenger *p, elevator *e);
+int checkFloor(building *b, int i);
 
-int printStats(char *buf);
+int printStats(building *b, char *buf);
 
 // Syscall Function Prototypes
 void link_syscalls(void);
@@ -110,11 +111,11 @@ void initElevator(elevator *e)
     int i;
     for (i = 0; i < MAX_FLOOR; i++)
     {
-        INIT_LIST_HEAD(e->p[i]);
+        INIT_LIST_HEAD(&e->p[i]);
     }
     
     e->status = OFFLINE;
-    e->current = 0;
+    e->_current = 0;
     e->next = 0;
     e->w_units = 0;
     e->p_units = 0;
@@ -125,12 +126,12 @@ void initElevator(elevator *e)
     e->shutdown = 0;
 }
 
-void initBuilding(building *b)
+void initBuilding(building *b, elevator *e)
 {
     int i;
     for (i = 0; i < MAX_FLOOR; i++)
     {
-        INIT_LIST_HEAD(b->f[i].waiting);
+        INIT_LIST_HEAD(&b->f[i].waiting);
         b->f[i].level = i;
         b->f[i].w_units = 0;
         b->f[i].p_units = 0;
@@ -140,65 +141,68 @@ void initBuilding(building *b)
         b->f[i].bell = 0;
         b->f[i].serviced = 0;
     }
-
-    b->current = 0;
+    
+    b->e = e;
+    b->_current = 0;
 }
 
 // always will be added to waiting
-void addPass(passenger *p)
+void addPass(building *b, passenger *p) 
 {
     int w_unit, p_unit;
     w_unit = getWeight(p);
     p_unit = getPass(p);
     
-    list_add_tail(&p->node, &b.f[p->s_floor].waiting);
+    list_add_tail(&p->node, &b->f[p->s_floor].waiting);
 
-    b.f[p->s_floor].w_units += w_unit;
-    b.f[p->s_floor].p_units += p_unit;
+    b->f[p->s_floor].w_units += w_unit;
+    b->f[p->s_floor].p_units += p_unit;
 
     switch (p->type)
     {
         case ADULT:
-            b.f[p->s_floor].adult += 1;
+            b->f[p->s_floor].adult += 1;
             break;
         case CHILD:
-            b.f[p->s_floor].child += 1;
+            b->f[p->s_floor].child += 1;
             break;
         case ROOM:
-            b.f[p->s_floor].room += 1;
+            b->f[p->s_floor].room += 1;
             break;
         case BELL:
-            b.f[p->s_floor].bell += 1;
+            b->f[p->s_floor].bell += 1;
             break;
     }
 }
 
 // always will be deleted from e->p[i]
-void delPass(passenger *p)
+void delPass(building *b, passenger *p) 
 {
     int w_unit, p_unit;
     w_unit = getWeight(p);
     p_unit = getPass(p);
 
+    elevator *e = b->e;
+
     switch (p->type)
     {
         case ADULT:
-            e.adult -= 1;
+            e->adult -= 1;
             break;
         case CHILD:
-            e.child -= 1;
+            e->child -= 1;
             break;
         case ROOM:
-            e.room -= 1;
+            e->room -= 1;
             break;
         case BELL:
-            e.bell -= 1;
+            e->bell -= 1;
             break;
     }
 
-    e.w_units -= w_unit;
-    e.p_units -= p_unit;
-    b.f[p->s_floor].serviced++;
+    e->w_units -= w_unit;
+    e->p_units -= p_unit;
+    b->f[p->s_floor].serviced++;
     list_del(&p->node);
     kfree(p);
     printk("Hate when go, love when leave");
@@ -206,37 +210,39 @@ void delPass(passenger *p)
 
 
 // always will be moved from waiting to e->p[i]
-void movePass(passenger *p)
+void movePass(building *b, passenger *p)
 {
     int w_unit, p_unit;
     w_unit = getWeight(p);
     p_unit = getPass(p);   
     
+    elevator *e = b->e;
+
     switch (p->type)
     {
         case ADULT:
-            b.f[p->s_floor].adult -= 1
-            e.adult += 1;
+            b->f[p->s_floor].adult -= 1;
+            e->adult += 1;
             break;
         case CHILD:
-            b.f[p->s_floor].child -= 1
-            e.child += 1;
+            b->f[p->s_floor].child -= 1;
+            e->child += 1;
             break;
         case ROOM:
-            b.f[p->s_floor].room -= 1
-            e.room += 1;
+            b->f[p->s_floor].room -= 1;
+            e->room += 1;
             break;
         case BELL:
-            b.f[p->s_floor].bell -= 1
-            e.bell += 1;
+            b->f[p->s_floor].bell -= 1;
+            e->bell += 1;
             break;
     }
     
-    b.f[p->s_floor].w_units -= w_unit;
-    b.f[p->s_floor].p_units -= p_unit;
-    e.w_units += w_unit;
-    e.p_units += p_unit;
-    list_move_tail(&p->node, &e.p[p->s_floor]);
+    b->f[p->s_floor].w_units -= w_unit;
+    b->f[p->s_floor].p_units -= p_unit;
+    e->w_units += w_unit;
+    e->p_units += p_unit;
+    list_move_tail(&p->node, &e->p[p->s_floor]);
     printk("Anotha one");
 }
 
@@ -266,28 +272,29 @@ char* getState(elevator *e)
     else                            return ("Not Set");
 }
 
-int printStats(char *buf)
+int printStats(building *b, char *buf)
 {
     int len = 0;
     int half = 0;
-    
-    if (e.w_units % 2 != 0)
+    elevator *e = b->e;
+
+    if (e->w_units % 2 != 0)
         half = 1;
 
-    len += sprintf(buf + len, "State: %s\n", getState(&e));
-    len += sprintf(buf + len, "Current Floor: %d\n", e.current);
-    len += sprintf(buf + len, "Next Floor: %d\n", e.next);
+    len += sprintf(buf + len, "State: %s\n", getState(e));
+    len += sprintf(buf + len, "Current Floor: %d\n", e->_current);
+    len += sprintf(buf + len, "Next Floor: %d\n", e->next);
     
     if (half)
-        len += sprintf(buf + len, "Elevator Load (P/W): %d/%d%s\n", e.p_units, e.w_units/2, ".5");
+        len += sprintf(buf + len, "Elevator Load (P/W): %d/%d%s\n", e->p_units, e->w_units/2, ".5");
     else
-        len += sprintf(buf + len, "Elevator Load (P/W):  %d/%d\n", e.p_units, e.w_units/2);
+        len += sprintf(buf + len, "Elevator Load (P/W):  %d/%d\n", e->p_units, e->w_units/2);
     
     int i;
     half = 0;
     for (i = 0; i < MAX_FLOOR; i++)
     {
-        if (b.f[i].w_units % 2 != 0)
+        if (b->f[i].w_units % 2 != 0)
             half = 1;
         
         if (half)
@@ -295,10 +302,10 @@ int printStats(char *buf)
             len += sprintf(buf + len, 
                 "\nFloor %d: %d/%d%s waiting (P/W) and %d serviced\n", 
                 i+1, 
-                b.f[i].p_units,
-                b.f[i].w_units/2,
+                b->f[i].p_units,
+                b->f[i].w_units/2,
                 ".5",
-                b.f[i].serviced);
+                b->f[i].serviced);
             half = 0;
         }
         else
@@ -306,9 +313,9 @@ int printStats(char *buf)
             len += sprintf(buf + len, 
                 "\nFloor %d: %d/%d waiting (P/W) and %d serviced\n", 
                 i+1, 
-                b.f[i].p_units,
-                b.f[i].w_units/2,
-                b.f[i].serviced);
+                b->f[i].p_units,
+                b->f[i].w_units/2,
+                b->f[i].serviced);
         }
     }
 
@@ -336,17 +343,17 @@ int hasSpace(elevator *e)
         return 0;   
 }
 
-int canFit(passenger *p)
+int canFit(passenger *p, elevator *e)
 {
-    if (getWeight(p) + e.w_units <= MAX_W && getPass(p) + e.p_units <= MAX_P)
+    if (getWeight(p) + e->w_units <= MAX_W && getPass(p) + e->p_units <= MAX_P)
         return 1;
     else
         return 0;
 }
 
-int checkFloor(int i)
+int checkFloor(building *b, int i)
 {
-    if (!list_empty(&b.f[i].waiting))
+    if (!list_empty(&b->f[i].waiting))
         return 1;
     else 
         return 0;
