@@ -364,13 +364,13 @@ int checkFloor(building *b, int i)
 
 /* will find the passenger at the head of the FIFO queue 
 to potentially load onto the elevator*/
-passenger* find()
+passenger* find(building *b)
 {
     struct list_head temp;
     passenger *p = NULL;
 
-    p = list_entry(temp, passenger, &(b.f[e.current]).waiting);
-    if(canFit(p) && pDirection(p) == e.direction) 
+    p = list_entry(temp, passenger, &((b->f)[e.current]).waiting);
+    if(canFit(p) && pDirection(p) == (b->e).direction) 
         return p;
     else
         return NULL;
