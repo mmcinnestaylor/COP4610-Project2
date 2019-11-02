@@ -39,8 +39,9 @@ int runElevator(void *data)
 
     while (!kthread_should_stop())
     {
+        /*
         ssleep(M_SLEEP);
-        if (mutex_lock_interruptable(&param->mutx) == 0)
+        if (mutex_lock_interruptible(&param->mutx) == 0)
         {
             //empty queue of passengers getting off at floor
             while (!list_empty(&e.p[e.current]))
@@ -73,11 +74,12 @@ int runElevator(void *data)
 
         }
         mutex_unlock(&param->mutx);
+        */
     }
 
     return 0;
 }
-
+/*
 int runBuilding(void *data)
 {
     tp *param = data;
@@ -86,7 +88,7 @@ int runBuilding(void *data)
     while (!kthread_should_stop())
     {
         ssleep(L_SLEEP);
-        if (mutex_lock_interruptable(&param->mutx) == 0)
+        if (mutex_lock_interruptible(&param->mutx) == 0)
         {
             if (checkFloor(e.current))
             {
@@ -105,12 +107,10 @@ int runBuilding(void *data)
 
     return 0;
 }
-
+*/
 extern long (*STUB_issue_request)(int, int, int);
 long issue_request(int p_type, int s_floor, int d_floor)
 {
-    printk("issue_request working\n");
-    /*
     if (p_type < 1 || p_type > 4)       return 1;
     if (s_floor < 1 || s_floor > 10)    return 1;
     if (d_floor < 1 || d_floor > 10)    return 1;
@@ -124,40 +124,33 @@ long issue_request(int p_type, int s_floor, int d_floor)
     INIT_LIST_HEAD(p->node);
     
     
-    mutex_lock_interruptable(&e_tp.mutx);
-    addPass(p);
+    mutex_lock_interruptible(&e_tp.mutx);
+    addPass(&b, p);
     mutex_unlock(&e_tp.mutx);
-    */
     return 0;
 }
 
 extern long (*STUB_start_elevator)(void);
 long start_elevator(void)
 {
-    printk("start_elevator working\n");
-    /*
     if (e.status != OFFLINE)
         return 1;
     
-    if (mutex_lock_interruptable(&e_tp.mutx) == 0)
+    if (mutex_lock_interruptible(&e_tp.mutx) == 0)
         e.status = IDLE;
     mutex_unlock(&e_tp.mutx);
-    */
     return 0;
 }
 
 extern long (*STUB_stop_elevator)(void);
 long stop_elevator(void)
 {   
-    printk("stop_elevator working\n");
-    /*
     if (e.shutdown) 
         return 1;
     
-    if (mutex_lock_interruptable(&e_tp.mutx) == 0)
+    if (mutex_lock_interruptible(&e_tp.mutx) == 0)
         e.shutdown = 1;
     mutex_unlock(&e_tp.mutx);
-    */
     return 0;
 }
 
@@ -185,8 +178,8 @@ int elevator_open(struct inode *sp_inode, struct file *sp_file)
     int printed = 0;
     while (!printed)
     {
-        if (mutex_lock_interruptable(&e_tp.mutx) == 0)
-            printed = printStats(message);
+        if (mutex_lock_interruptible(&e_tp.mutx) == 0)
+            printed = printStats(&b, message);
         mutex_unlock(&e_tp.mutx);
     }
     
@@ -216,7 +209,7 @@ ssize_t elevator_read(struct file *sp_file, char __user *buf, size_t size, loff_
 
 int elevator_release(struct inode *sp_inode, struct file *sp_file)
 {
-    prink(KERN_NOTICE "proc called release\n");
+    printk(KERN_NOTICE "proc called release\n");
     kfree(message);
     return 0;
 }
@@ -231,7 +224,7 @@ static int elevator_init(void)
     fops.release = elevator_release;
     
     initElevator(&e);
-    initBuilding(&b); 
+    initBuilding(&b, &e); 
     
     if (!proc_create(ENTRY_NAME, PERMS, NULL, &fops))
     {
@@ -245,7 +238,7 @@ static int elevator_init(void)
     {
         printk(KERN_WARNING "error spawning elevator thread");
         remove_proc_entry(ENTRY_NAME, NULL);
-        return PTR_ERR(e_tp.kthread)
+        return PTR_ERR(e_tp.kthread);
     }
     
     return 0;

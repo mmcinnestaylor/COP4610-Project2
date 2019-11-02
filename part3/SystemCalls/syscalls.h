@@ -1295,6 +1295,6 @@ static inline unsigned int ksys_personality(unsigned int personality)
 
 asmlinkage long sys_start_elevator(void);
 asmlinkage long sys_issue_request(int, int, int);
-asmlinkage long stop_elevator(void);
+asmlinkage long sys_stop_elevator(void);
 
 #endif
