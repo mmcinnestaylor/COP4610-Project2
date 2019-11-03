@@ -28,55 +28,101 @@ static int read_p;
 void initEThread(tp *param)
 {
     mutex_init(&param->mutx);
-    param->kthread = kthread_run(runElevator, &e_tp, "Elevator thread runnin\n");
+    param->kthread = kthread_run(runElevator, param, "Elevator thread runnin'\n");
 }
 
 int runElevator(void *data)
 {
     tp *param = data;
     passenger *p;
-    struct list_head temp;
-
+    int waiting, servicing;
+    struct list_head *ptr, *tmp;
+    
     while (!kthread_should_stop())
     {
-        /*
-        ssleep(M_SLEEP);
-        if (mutex_lock_interruptible(&param->mutx) == 0)
+        if (e.status != OFFLINE) 
         {
-            //empty queue of passengers getting off at floor
-            while (!list_empty(&e.p[e.current]))
-            {
-                p = list_first_entry(&e.p[e.current], passenger, node);
-                delPass(p);
-            }
-            /*add passengers (if any) to elevator if going in same direction
-            and they can fit*/
-            while(checkFloor(e.current)){
-                p = find();
-                if(p != NULL)
-                    movePass(p);
+            if (mutex_lock_interruptible(&param->mutx) == 0) 
+            {      
+                if (!list_empty(&b.f[e._current].waiting) || !list_empty(&e.p[e._current]))
+                {
+                    e.status = LOADING;
+
+                    //empty queue of passengers getting off at floor
+                    if (!list_empty(&e.p[e._current]))
+                    {
+                        list_for_each_safe(ptr, tmp, &e.p[e._current])
+                        {
+                            p = list_first_entry(ptr, passenger, node);
+                            delPass(&b, p);
+                        }
+                    }
+                    if (checkFloor(&b, e._current) && e.shutdown != 1)
+                    {
+                        list_for_each_safe(ptr, tmp, &b.f[e._current].waiting) 
+                        {
+                            p = list_first_entry(ptr, passenger, node);
+                            
+                            if(p != NULL && canFit(p, &e) && pDirection(p) == e.direction) 
+                            {
+                                printk("(1) Loading pass type: %d, start: %d, end: %d\n",
+                                        p->type, p->s_floor, p->d_floor);
+                                movePass(&b, p);
+                            }
+                            else
+                                break;
+                        }
+                    } 
+                }
+
+
+                waiting = checkBuilding(&b);
+                servicing = checkElevator(&e);
+                
+                if (!waiting && !servicing)
+                {
+                    e.status = IDLE;
+                    if (e.shutdown == 1)
+                    {
+                        if (kthread_stop(e_tp.kthread) != -EINTR)
+                            printk("Thread successfully stopped\n");
+                    }
+                }
                 else
-                    break;
+                {
+                    if(e.next == 0){
+                        e._current = e.next; 
+                        e.next++;
+                        e.direction = 1;
+                        e.status = UP;
+                    }
+                    else if(e.next == 9){            
+                        e._current = e.next;
+                        e.next--;
+                        e.direction = 0;
+                        e.status = DOWN;
+                    }
+                    else if(e.direction == 1) {
+                        e._current = e.next;
+                        e.next++;
+                    }
+                    else {
+                        e._current = e.next;
+                        e.next--;
+                    }
+                }
             }
-            //move to next floor
-            if(e.current == 1){
-                e.direction = 1;
-                e.current++;
-            }
-            else if(e.current == 10){
-                e.direction = 0;
-                e.current--;
-            }
-            else if(e.direction == 1)
-                e.current++;
-            else
-                e.current--;
+            mutex_unlock(&param->mutx);
+           
 
+           // if (mutex_lock_interruptible(&param->mutx) == 0) { 
+        
+                //move to next floor
+          //  mutex_unlock(&param->mutx); 
         }
-        mutex_unlock(&param->mutx);
-        */
-    }
-
+        
+        ssleep(M_SLEEP);
+    } 
     return 0;
 }
 /*
@@ -119,13 +165,13 @@ long issue_request(int p_type, int s_floor, int d_floor)
     passenger *p;
     p = kmalloc(sizeof(passenger), KMFLAGS);
     p->type = p_type - 1;
-    p->s_floor = s_type - 1;
-    p->d_floor = d_type - 1;
-    INIT_LIST_HEAD(p->node);
+    p->s_floor = s_floor - 1;
+    p->d_floor = d_floor - 1;
+    INIT_LIST_HEAD(&p->node);
     
     
-    mutex_lock_interruptible(&e_tp.mutx);
-    addPass(&b, p);
+    if (mutex_lock_interruptible(&e_tp.mutx) == 0)
+        addPass(&b, p);
     mutex_unlock(&e_tp.mutx);
     return 0;
 }
@@ -249,8 +295,33 @@ module_init(elevator_init);
 static void elevator_exit(void)
 {
     unlink_syscalls();
+    
+    struct list_head *ptr, *tmp;
+    passenger *p = NULL;
+    int i;
+    for (i = 0; i < MAX_FLOOR; i++)
+    {
+        if (!list_empty(&e.p[i]))
+        {
+            list_for_each_safe(ptr, tmp, &e.p[i])
+            {
+                p = list_entry(ptr, passenger, node);
+                list_del(ptr);
+                kfree(p);
+            } 
+        }
 
-    kthread_stop(e_tp.kthread);
+        if (!list_empty(&b.f[i].waiting))
+        { 
+            list_for_each_safe(ptr, tmp, &b.f[i].waiting)
+            {
+                p = list_entry(ptr, passenger, node);
+                list_del(ptr);
+                kfree(p);
+            }
+        }
+    }
+
     mutex_destroy(&e_tp.mutx);
 
     remove_proc_entry(ENTRY_NAME, NULL);
