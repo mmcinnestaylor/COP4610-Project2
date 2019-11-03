@@ -11,7 +11,7 @@
 #define MAX_W 30
 #define MAX_P 10
 #define M_SLEEP 2
-#define L_SLEEP 1
+#define L_SLEEP 1 //not used, how do you simulate a constraint using ssleep()?
 
 typedef enum { IDLE, OFFLINE, LOADING, UP, DOWN } STATE;
 typedef enum { ADULT, CHILD, ROOM, BELL } P_TYPE;
@@ -34,17 +34,17 @@ typedef struct passenger_type
 
 typedef struct elevator_type 
 {    
-    struct list_head p[10];         // passengers
+    struct list_head p[10];         // passengers for each floor; added using d_floor as index
     STATE status;
     int w_units;
     int p_units;
-    int adult;
-    int child;
-    int room;
-    int bell;
+    int adult;         //number of adults
+    int child;          //number of child
+    int room;           //number of room service
+    int bell;           //number of bell hops
     int _current;
-    int next;
-    int shutdown;
+    int next;       
+    int shutdown;   //1 if shutdown has been called
     int direction; // 1 if going up, 0 if going down
 
 } elevator;
@@ -67,7 +67,6 @@ typedef struct building_type
 {
     floors f[10];
     elevator *e;
-    int _current;
 
 } building;
 
@@ -85,11 +84,9 @@ int runElevator(void *data);
 // Elevator Function Prototypes
 void initElevator(elevator *e);
 char* getState(elevator *e);
-int calcWeight(elevator *e);
-int calcPass(elevator *e);
 int hasSpace(elevator *e);
 int pDirection(passenger *p);
-passenger* find(building *b);
+passenger* find(building *b);       //for optimization (if we get there)
 
 void initBuilding(building *b, elevator *e);
 void addPass(building *b, passenger *p);
@@ -106,6 +103,7 @@ int printStats(building *b, char *buf);
 // Syscall Function Prototypes
 void link_syscalls(void);
 void unlink_syscalls(void);
+
 
 
 
@@ -157,7 +155,15 @@ void addPass(building *b, passenger *p)
     w_unit = getWeight(p);
     p_unit = getPass(p);
     
+    if (w_unit == -1 || p_unit == -1)
+    {
+        printk("Invalid p->type value: (%d, %d, %d)\n", p->type, p->s_floor, p->d_floor);
+        return;
+    }
+    
+    //printk("addr: %08x, node addr: %08x\n", &p, &p->node);                      
     list_add_tail(&p->node, &b->f[p->s_floor].waiting);
+    //printk("addr: %08x, node addr: %08x\n", &p, &p->node);
 
     b->f[p->s_floor].w_units += w_unit;
     b->f[p->s_floor].p_units += p_unit;
@@ -178,7 +184,7 @@ void addPass(building *b, passenger *p)
             break;
     }
 
-    printk("Adding pass type: %d, start: %d, dest: %d\n", p->type, p->s_floor, p->d_floor);
+    //printk("Adding pass type: %d, start: %d, dest: %d\n", p->type + 1, p->s_floor + 1, p->d_floor + 1);
 }
 
 // always will be deleted from e->p[i]
@@ -187,6 +193,12 @@ void delPass(building *b, passenger *p)
     int w_unit, p_unit;
     w_unit = getWeight(p);
     p_unit = getPass(p);
+
+    if (w_unit == -1 || p_unit == -1)
+    {
+        printk("Invalid p->type value: (%d, %d, %d)\n", p->type, p->s_floor, p->d_floor);
+        return;
+    }
 
     elevator *e = b->e;
 
@@ -211,8 +223,8 @@ void delPass(building *b, passenger *p)
     b->f[p->s_floor].serviced++;
     list_del(&p->node);
     kfree(p);
-    printk("Hate when go, love when leave\n");
-    printk("Unloading pass type: %d, start: %d, dest: %d\n", p->type, p->s_floor, p->d_floor);
+    //printk("Hate when go, love when leave\n");
+    //printk("Unloading pass type: %d, start: %d, dest: %d\n", p->type + 1, p->s_floor + 1, p->d_floor + 1);
 
 }
 
@@ -220,12 +232,16 @@ void delPass(building *b, passenger *p)
 // always will be moved from waiting to e->p[i]
 void movePass(building *b, passenger *p)
 {
-    printk("(2) Loading pass type: %d, start: %d, end: %d\n", p->type, p->s_floor, p->d_floor);
-
     int w_unit, p_unit;
     w_unit = getWeight(p);
-    p_unit = getPass(p);   
+    p_unit = getPass(p);
     
+    if (w_unit == -1 || p_unit == -1)
+    {
+        printk("Invalid p->type value: (%d, %d, %d)\n", p->type, p->s_floor, p->d_floor);
+        return;
+    }
+
     elevator *e = b->e;
 
     switch (p->type)
@@ -253,14 +269,15 @@ void movePass(building *b, passenger *p)
     e->w_units += w_unit;
     e->p_units += p_unit;
     list_move_tail(&p->node, &e->p[p->d_floor]);
-    printk("Anotha one\n");
-    printk("Loading pass type: %d, start: %d, dest: %d\n", p->type, p->s_floor, p->d_floor);
+    //printk("Anotha one\n");
+    //printk("Loading pass type: %d, start: %d, dest: %d\n", p->type + 1, p->s_floor + 1, p->d_floor + 1);
 }
 
 int getPass(passenger *p)
 {
-    if (p->type == CHILD || p->type == ADULT)   return 1;
-    else                                        return 2; // bell or room
+    if (p->type == CHILD || p->type == ADULT)       return 1;
+    else if (p->type == ROOM || p->type == BELL)    return 2; // bell or room
+    else                                            return -1;
 }
 
 
@@ -269,10 +286,11 @@ int getWeight(passenger *p)
     if (p->type == CHILD)       return 1;
     else if (p->type == ADULT)  return 2;
     else if (p->type == ROOM)   return 4;
-    else                        return 8;     //bell
+    else if (p->type == BELL)   return 8;     //bell
+    else                        return -1;
 }
 
-
+//get char string of state
 char* getState(elevator *e)
 {
     if (e->status == IDLE)          return ("Idle");
@@ -283,6 +301,7 @@ char* getState(elevator *e)
     else                            return ("Not Set");
 }
 
+//print building/elevator stats
 int printStats(building *b, char *buf)
 {
     int len = 0;
@@ -333,19 +352,7 @@ int printStats(building *b, char *buf)
     return len;
 }
 
-int calcWeight(elevator *e)
-{
-    e->w_units = e->child + e->adult * 2 + e->room * 4 + e->bell * 8;
-    return e->w_units;
-}
-
-
-int calcPass(elevator *e)
-{
-    e->p_units = e->child + e->adult + e->room * 2 + e->bell * 2;
-    return e->p_units;
-}
-
+//check if elevator has space
 int hasSpace(elevator *e)
 {
     if(e->w_units < MAX_W && e->p_units < MAX_P)
@@ -354,6 +361,7 @@ int hasSpace(elevator *e)
         return 0;   
 }
 
+// check if the specific passenger can fit in the elevator
 int canFit(passenger *p, elevator *e)
 {
     if (getWeight(p) + e->w_units <= MAX_W && getPass(p) + e->p_units <= MAX_P)
@@ -362,6 +370,7 @@ int canFit(passenger *p, elevator *e)
         return 0;
 }
 
+//check if building floor waiting list is empty
 int checkFloor(building *b, int i)
 {
     if (!list_empty(&b->f[i].waiting))
@@ -370,6 +379,7 @@ int checkFloor(building *b, int i)
         return 0;
 }
 
+//check if there is anyone waiting to be serviced throughout the building
 int checkBuilding(building *b)
 {
     int i;
@@ -382,6 +392,7 @@ int checkBuilding(building *b)
     return 0;
 }
 
+//check if there is anyone on the elevator
 int checkElevator(elevator *e)
 {
     int i;
@@ -414,6 +425,7 @@ passenger* find(building *b)
         return NULL;
 }
 
+//returns true if pass is going up, false otherwise
 int pDirection(passenger *p)
 {
     if(p->d_floor > p->s_floor)

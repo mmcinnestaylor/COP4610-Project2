@@ -1,21 +1,27 @@
+SHELL := /bin/bash
 ELEVATOR_MODULE = /usr/src/test_kernel/part3
 .PHONY: compile insert remove start issue stop watch_proc clean
-.PHONY1: compile insert remove start issue stop clean
-.PHONY2: compile insert start issue stop remove clean
+.PHONY1: compile insert issue start issue stop watch_proc  
+.PHONY2: compile insert driver start
 
-compile: producer.c consumer.c wrappers.h
+compile: driver.c producer.c consumer.c wrappers.h
 	gcc -o producer.x producer.c
 	gcc -o consumer.x consumer.c
-
+	gcc -o driver.x driver.c
 insert:
 	make -C $(ELEVATOR_MODULE) && sudo insmod $(ELEVATOR_MODULE)/elevator.ko
 remove:
 	sudo rmmod elevator
 
+driver: compile
+	./driver.x	
 start: compile
 	./consumer.x --start
 issue: compile
-	./producer.x
+	for run in {1..50}; do \
+		./producer.x; \
+		sleep 1; \
+	done
 stop: compile
 	./consumer.x --stop
 
