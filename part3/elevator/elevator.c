@@ -92,7 +92,15 @@ int runElevator(void *data)
                         ptr = NULL; tmp = NULL;
                     } 
                 }
+            }
+        }
+        mutex_unlock(&param->mutx);
+        ssleep(L_SLEEP);
 
+        if (mutex_lock_interruptible(&param->mutx) == 0)
+        {
+            if (e.status != OFFLINE)
+            {
                 waiting = checkBuilding(&b);
                 servicing = checkElevator(&e);
                 

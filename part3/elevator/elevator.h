@@ -145,7 +145,6 @@ void initBuilding(building *b, elevator *e)
     }
     
     b->e = e;
-    b->_current = 0;
 }
 
 // always will be added to waiting

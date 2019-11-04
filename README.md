@@ -53,7 +53,8 @@ Part 3:
 How to run Part 1:
 * go to the part1 directory
 * call "make .PHONY" to compile and strace both exectuables, outputting to the respective log files
-* .PHONY will include a target to sdiff both log files and output to file "diff.txt"
+* .PHONY will include a target to sdiff both log files and output to file "diff.txt" 
+* NOTE: sdiff returns a negative value so Makefile will print that the target failed, this is not the case, however
 * cat diff.txt to see the additional six lines
 
 How to run part 2:
@@ -126,8 +127,7 @@ No known issues or bugs.
 
 #### Part 3:
 
-* Elevator isn't manually constrained to a time of 1 second when loading/unloading. We were able to see how to sleep the thread between floors by calling ssleep() after an iteration of the thread loop, but were unsure on how we'd be able to simulate a time constraint on loading/unloading loop using ssleep().
-
+No known issues or bugs.
 
 ### EXTRA CREDIT
 
