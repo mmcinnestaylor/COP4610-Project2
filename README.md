@@ -15,58 +15,64 @@ Part 1:
 
 * part1.c - makes exactly six system calls
 * empty.c - used to compare syscalls
-* makefile - used to make
-* log - first attempt at log to make sure the appropriate amount of calls were made
-* log2 - verification of appropriate umber of calls
+* Makefile - makes source (part1.c and empty.c) to associated part1.x and empty.x executables
+* log - first attempt at log to make sure the appropriate amount of calls were made (output of strace on empty.x)
+* log2 - verification of appropriate umber of calls (output of strace on part1.x)
 
 
 Part 2:
 
-* Makefile - used to make
+* Makefile - makes my_xtime source into the .ko module
 * my_xtime.c - procs the time and the time since last proc
 
 
 Part 3:
 
 * system calls (directory)
-  * Makefile - makes
-  * issue_request.c - issues a request -- places a person on a floor
-  * start_elevator.c - starts the elevator 
-  * stop_elevator.c - stops the elevator
-  * syscall_64.tbl - syscall table with existing and new syscalls
-  * syscalls.h - sycalls header dile for whole kernel
+  * Makefile - defines obj-y target to add start, issue, and stop to be directly compiled into kernel
+  * issue_request.c - issues a request -- places a person on a floor (defines funct pointer, exports symbol, and defines syscall)
+  * start_elevator.c - starts the elevator (defines funct pointer, exports symbol, and defines syscall)
+  * stop_elevator.c - stops the elevator (defines funct pointer, exports symbol, and defines syscall)
+  * syscall_64.tbl - syscall table with existing and new syscalls (adds new syscall names and associated numbers)
+  * syscalls.h - sycalls header file for whole kernel (adds new declarations for our added)
   
 * elevator (directory)
-  * elevator.c - currently under development
-  * elevator.h - currently under development
+  * elevator.c - declarations and definitions for elevator kernel module
+  * elevator.h - declarations and definitions for all supplementary structures and elevator helper functions
   
 * test (directory)
-  * Makefile - given
+  * Makefile - given (modified for implementing our own stress test)
   * consumer.c - given
   * producer.c - given
   * wrappers.h - given
+  * driver.c - added driver to test controlled issue requests (to assure FIFO ordering for loading from waiting queue)
 
 
 ## Makefile description / How to Run
 
 How to run Part 1:
 * go to the part1 directory
-* type 'make'
-* check tail
-
+* call "make .PHONY" to compile and strace both exectuables, outputting to the respective log files
+* .PHONY will include a target to sdiff both log files and output to file "diff.txt"
+* cat diff.txt to see the additional six lines
 
 How to run part 2:
-* type 'make'
-* cat /proc/timed
-
+* go to the part2 directory
+* call "make .PHONY"; it will compile and insmod automatically
+* "cat /proc/timed"
+* ???
+* Profit?
+* call "make remove" to remove the module
 
 How to run part 3:
-* go to ~/part3/elevator/test/
-* make .PHONY1 
-* make start - start elevator
-* make issue - issue a request
-* cat /proc/elevator
-* tail -f /var/log/syslog - to see the printks
+* go to part3/elevator/test/
+* call "make .PHONY1" (this will compile and insert the elevator kernel module)
+* call "make start" to start the elevator
+* call "make issue" to issue just 1 request
+* call "make issues" to issue 50 sequential requests
+* call "make stop" to stop the elevator
+* "cat /proc/elevator" to print proc entry manually, alternatively the given "watch_proc" will call it every second
+* tail -f /var/log/syslog - to see the printks (we have commented out unnecessary prints in addPass, delPass, movePass, and runElevator; if you want them, please uncomment them)
 
 
 ## Documentation of Group Member Contribution
@@ -120,7 +126,8 @@ No known issues or bugs.
 
 #### Part 3:
 
-No known issues or bugs.
+* Elevator isn't manually constrained to a time of 1 second when loading/unloading. We were able to see how to sleep the thread between floors by calling ssleep() after an iteration of the thread loop, but were unsure on how we'd be able to simulate a time constraint on loading/unloading loop using ssleep().
+
 
 ### EXTRA CREDIT
 
